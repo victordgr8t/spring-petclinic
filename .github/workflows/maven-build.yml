@@ -81,7 +81,7 @@ jobs:
             echo "EC2_IP is empty. Exiting."
             exit 1
           fi
-          echo '{ "insecure-registries": ["http://${{ env.EC2_IP }}:8081"] }' | sudo tee /etc/docker/daemon.json
+          echo '{"insecure-registries": ["http://${{ env.EC2_IP }}:8081"]}' | sudo tee /etc/docker/daemon.json
           sudo systemctl restart docker
 
       # Step 10: Build Docker image for Spring PetClinic
