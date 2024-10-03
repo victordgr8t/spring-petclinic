@@ -33,6 +33,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: ${{ matrix.java }}
+          distribution: 'temurin'
 
       # Step 3: Cache Maven dependencies to speed up subsequent builds.
       # Caching is based on the operating system and the hash of the `pom.xml` file.
