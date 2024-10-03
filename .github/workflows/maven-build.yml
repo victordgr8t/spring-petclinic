@@ -41,8 +41,8 @@ jobs:
           fi
 
       # Step 4: Debug EC2 IP retrieval
-      - name: Debug EC2 IP
-        run: echo "EC2 IP is: ${{ env.EC2_IP }}"
+      #$- name: Debug EC2 IP
+       # run: echo "EC2 IP is: ${{ env.EC2_IP }}"
 
       # Step 5: Set up JDK 17
       - name: Set up JDK ${{ matrix.java }}
