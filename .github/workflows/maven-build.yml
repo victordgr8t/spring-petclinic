@@ -1,5 +1,6 @@
 name: Build Java App with Maven, Push Docker Image to JFrog, and Scan Code with SonarCloud
 
+# Trigger workflow on push or pull request to the 'main' branch
 on:
   push:
     branches: [ main ]
@@ -18,40 +19,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Set up AWS credentials for accessing EC2 instance
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      # Step 3: Fetch EC2 Public IP dynamically
-      - name: Get EC2 Public IP
-        id: ec2_ip
-        run: |
-          EC2_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=YourInstanceName" \
-            --query "Reservations[*].Instances[*].PublicIpAddress" --output text)
-          if [ -z "$EC2_IP" ]; then
-            echo "EC2_IP could not be determined. Exiting."
-            exit 1
-          else
-            echo "EC2 Public IP: $EC2_IP"
-            echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV
-          fi
-
-      # Step 4: Debug EC2 IP retrieval
-      #$- name: Debug EC2 IP
-       # run: echo "EC2 IP is: ${{ env.EC2_IP }}"
-
-      # Step 5: Set up JDK 17
+      # Step 2: Set up JDK 17
       - name: Set up JDK ${{ matrix.java }}
         uses: actions/setup-java@v4
         with:
           java-version: ${{ matrix.java }}
           distribution: 'temurin'
 
-      # Step 6: Cache Maven dependencies
+      # Step 3: Cache Maven dependencies
       - name: Cache Maven packages
         uses: actions/cache@v3
         with:
@@ -60,11 +35,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      # Step 7: Build the project using Maven
+      # Step 4: Build the project using Maven
       - name: Build with Maven
         run: mvn clean install
 
-      # Step 8: Determine Docker tag
+      # Step 5: Determine Docker tag
       - name: Determine Docker Tag
         id: tag
         run: |
@@ -74,33 +49,29 @@ jobs:
             echo "TAG=${{ github.ref_name }}" >> $GITHUB_ENV
           fi
 
-      # Step 9: Configure Docker for insecure registry using the EC2 IP
+      # Step 6: Configure Docker for insecure registry
       - name: Configure Docker for insecure registry
         run: |
-          if [ -z "${{ env.EC2_IP }}" ]; then
-            echo "EC2_IP is empty. Exiting."
-            exit 1
-          fi
-          echo '{"insecure-registries": ["http://${{ env.EC2_IP }}:8081"]}' | sudo tee /etc/docker/daemon.json
+          echo '{ "insecure-registries": ["44.201.244.220:8081"] }' | sudo tee /etc/docker/daemon.json
           sudo systemctl restart docker
 
-      # Step 10: Build Docker image for Spring PetClinic
+      # Step 7: Build Docker image for Spring PetClinic
       - name: Build Docker image
         run: docker build -t spring-petclinic:${{ env.TAG }} .
 
-      # Step 11: Tag the Docker image using EC2 IP dynamically
+      # Step 8: Tag the Docker image according to the official command
       - name: Tag Docker image
-        run: docker tag spring-petclinic:${{ env.TAG }} ${{ env.EC2_IP }}:8081/docker-local-1/spring-petclinic:${{ env.TAG }}
+        run: docker tag spring-petclinic:${{ env.TAG }} 44.201.244.220:8081/docker-local-1/spring-petclinic:${{ env.TAG }}
 
-      # Step 12: Log in to Docker using JFrog credentials (using the EC2 IP)
+      # Step 9: Log in to Docker using JFrog credentials
       - name: Log in to Docker
-        run: echo "${{ secrets.JFROG_API_KEY }}" | docker login -u "${{ secrets.JFROG_USERNAME }}" --password-stdin http://${{ env.EC2_IP }}:8081
+        run: echo "${{ secrets.JFROG_API_KEY }}" | docker login -u "${{ secrets.JFROG_USERNAME }}" --password-stdin http://44.201.244.220:8081
 
-      # Step 13: Push Docker image to JFrog Artifactory Docker registry
+      # Step 10: Push Docker image to JFrog Artifactory Docker registry
       - name: Push Docker image to JFrog
-        run: docker push ${{ env.EC2_IP }}:8081/docker-local-1/spring-petclinic:${{ env.TAG }}
+        run: docker push 44.201.244.220:8081/docker-local-1/spring-petclinic:${{ env.TAG }}
 
-      # Step 14: Run SonarCloud scan
+      # Step 11: Run SonarCloud scan
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@v1
         with:
