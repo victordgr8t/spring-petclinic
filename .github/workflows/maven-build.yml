@@ -1,8 +1,12 @@
-# This workflow will build a Java project with Maven, and cache/restore any dependencies to improve the workflow execution time
+# This workflow will build a Spring Boot java apllication using Maven, it will also build a docker image and push the Docker image to JFrog Artifactory. 
+# SonarCloiud is also intergrated into this workflow will scan the java code and Docker files for code quality and security vulnerabilities
 # For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
 
-name: Java CI with Maven
 
+name: Build Java App with Maven, Push Docker Image to JFrog, and Scan Code with SonarCloud
+
+# This section defines the triggers for the workflow. 
+# The workflow will run on any push or pull request to the 'main' branch.
 on:
   push:
     branches: [ main ]
@@ -10,20 +14,75 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
-
+  # Defining a job named 'build_and_deploy' which will execute the build, push, and scan processes.
+  build_and_deploy:
+    # The job will run on the latest Ubuntu runner provided by GitHub.
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        # Java 17 will be used in the build process.
         java: [ '17' ]
 
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up JDK ${{matrix.java}}
+      # Step 1: Check out the repository code to the runner.
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up the specified Java version (Java 17 in this case).
+      - name: Set up JDK ${{ matrix.java }}
         uses: actions/setup-java@v4
         with:
-          java-version: ${{matrix.java}}
-          distribution: 'adopt'
-          cache: maven
-      - name: Build with Maven Wrapper
-        run: ./mvnw -B package
+          java-version: ${{ matrix.java }}
+
+      # Step 3: Cache Maven dependencies to speed up subsequent builds.
+      # Caching is based on the operating system and the hash of the `pom.xml` file.
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      # Step 4: Build the project using Maven.
+      # This will clean the project and install all dependencies, producing the final build artifact (e.g., JAR file).
+      - name: Build with Maven
+        run: mvn clean install
+
+      # Step 5: Determine the Docker image tag based on the branch being built.
+      # If the branch is 'main' or 'master', the image will be tagged as 'latest'.
+      # For other branches (e.g., feature branches), the image will be tagged with the branch name.
+      - name: Determine Docker Tag
+        id: tag
+        run: |
+          if [[ "${{ github.ref_name }}" == "main" || "${{ github.ref_name }}" == "master" ]]; then
+            echo "TAG=latest" >> $GITHUB_ENV
+          else
+            echo "TAG=${{ github.ref_name }}" >> $GITHUB_ENV
+          fi
+
+      # Step 6: Build the Docker image for the Spring PetClinic application.
+      # The image will be tagged with the branch-specific tag determined in the previous step.
+      - name: Build Docker image
+        run: docker build -t spring-petclinic:${{ env.TAG }} .
+
+      # Step 7: Log in to Docker using credentials stored as GitHub Secrets.
+      # These secrets are the JFrog API key, username, and registry.
+      # This allows us to authenticate to the JFrog Artifactory registry for pushing the image.
+      - name: Log in to Docker
+        run: echo "${{ secrets.JFROG_API_KEY }}" | docker login -u "${{ secrets.JFROG_USERNAME }}" --password-stdin ${{ secrets.JFROG_REGISTRY }}
+
+      # Step 8: Push the built Docker image to the JFrog Artifactory Docker registry.
+      # The image will be pushed with the tag determined earlier (either 'latest' or the branch name).
+      - name: Push Docker image to JFrog
+        run: docker push ${{ secrets.JFROG_REGISTRY }}/spring-petclinic:${{ env.TAG }}
+
+      # Step 9: Run a SonarCloud scan to check the code quality and security vulnerabilities of the project.
+      # The SonarCloud project key, organization, and authentication token are provided as inputs.
+      # The token is stored as a GitHub Secret.
+      - name: SonarCloud Scan
+        uses: sonarsource/sonarcloud-github-action@v4
+        with:
+          projectKey: your-sonarcloud-project-key  # SonarCloud project key
+          organization: your-sonarcloud-organization  # SonarCloud organization name
+          token: ${{ secrets.SONAR_TOKEN }}  # SonarCloud authentication token stored in secrets
