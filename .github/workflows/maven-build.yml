@@ -81,7 +81,7 @@ jobs:
       # The SonarCloud project key, organization, and authentication token are provided as inputs.
       # The token is stored as a GitHub Secret.
       - name: SonarCloud Scan
-        uses: sonarsource/sonarcloud-github-action@v4
+        uses: sonarsource/sonarcloud-github-action@v1
         with:
           projectKey: victordgr8t  # SonarCloud project key
           organization: Nnamdi Victor Modebe  # SonarCloud organization name
