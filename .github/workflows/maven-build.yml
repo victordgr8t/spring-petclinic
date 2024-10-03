@@ -26,22 +26,32 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # Step 3: Fetch EC2 instance public IP dynamically
+      # Step 3: Fetch EC2 Public IP dynamically
       - name: Get EC2 Public IP
         id: ec2_ip
         run: |
           EC2_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=YourInstanceName" \
             --query "Reservations[*].Instances[*].PublicIpAddress" --output text)
-          echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV
+          if [ -z "$EC2_IP" ]; then
+            echo "EC2_IP could not be determined. Exiting."
+            exit 1
+          else
+            echo "EC2 Public IP: $EC2_IP"
+            echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV
+          fi
 
-      # Step 4: Set up JDK 17
+      # Step 4: Debug EC2 IP retrieval
+      - name: Debug EC2 IP
+        run: echo "EC2 IP is: ${{ env.EC2_IP }}"
+
+      # Step 5: Set up JDK 17
       - name: Set up JDK ${{ matrix.java }}
         uses: actions/setup-java@v4
         with:
           java-version: ${{ matrix.java }}
           distribution: 'temurin'
 
-      # Step 5: Cache Maven dependencies
+      # Step 6: Cache Maven dependencies
       - name: Cache Maven packages
         uses: actions/cache@v3
         with:
@@ -50,11 +60,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      # Step 6: Build the project using Maven
+      # Step 7: Build the project using Maven
       - name: Build with Maven
         run: mvn clean install
 
-      # Step 7: Determine Docker tag
+      # Step 8: Determine Docker tag
       - name: Determine Docker Tag
         id: tag
         run: |
@@ -64,29 +74,33 @@ jobs:
             echo "TAG=${{ github.ref_name }}" >> $GITHUB_ENV
           fi
 
-      # Step 8: Configure Docker for insecure registry using the EC2 IP
+      # Step 9: Configure Docker for insecure registry using the EC2 IP
       - name: Configure Docker for insecure registry
         run: |
+          if [ -z "${{ env.EC2_IP }}" ]; then
+            echo "EC2_IP is empty. Exiting."
+            exit 1
+          fi
           echo '{ "insecure-registries": ["http://${{ env.EC2_IP }}:8081"] }' | sudo tee /etc/docker/daemon.json
           sudo systemctl restart docker
 
-      # Step 9: Build Docker image for Spring PetClinic
+      # Step 10: Build Docker image for Spring PetClinic
       - name: Build Docker image
         run: docker build -t spring-petclinic:${{ env.TAG }} .
 
-      # Step 10: Tag the Docker image using EC2 IP dynamically
+      # Step 11: Tag the Docker image using EC2 IP dynamically
       - name: Tag Docker image
         run: docker tag spring-petclinic:${{ env.TAG }} ${{ env.EC2_IP }}:8081/docker-local-1/spring-petclinic:${{ env.TAG }}
 
-      # Step 11: Log in to Docker using JFrog credentials (using the EC2 IP)
+      # Step 12: Log in to Docker using JFrog credentials (using the EC2 IP)
       - name: Log in to Docker
         run: echo "${{ secrets.JFROG_API_KEY }}" | docker login -u "${{ secrets.JFROG_USERNAME }}" --password-stdin http://${{ env.EC2_IP }}:8081
 
-      # Step 12: Push Docker image to JFrog Artifactory Docker registry
+      # Step 13: Push Docker image to JFrog Artifactory Docker registry
       - name: Push Docker image to JFrog
         run: docker push ${{ env.EC2_IP }}:8081/docker-local-1/spring-petclinic:${{ env.TAG }}
 
-      # Step 13: Run SonarCloud scan
+      # Step 14: Run SonarCloud scan
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@v1
         with:
