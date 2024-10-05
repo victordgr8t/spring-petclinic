@@ -64,13 +64,15 @@ jobs:
         run: docker tag spring-petclinic:${{ env.TAG }} ${{ secrets.DOCKERHUB_USERNAME }}/spring-petclinic:${{ env.TAG }}
         #run: docker tag spring-petclinic:${{ env.TAG }} 44.201.244.220:8081/docker-local-1/spring-petclinic:${{ env.TAG }}
 
+          # Step 9: Log in to Docker using JFrog credentials
+      - name: Log in to Docker
+        run: docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_PASSWORD }}"
+
       # Step 9: Push Docker image to Docker Hub
       - name: Push Docker image to Docker Hub
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/spring-petclinic:${{ env.TAG }}
         
-      # Step 9: Log in to Docker using JFrog credentials
-      - name: Log in to Docker
-        run: docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_PASSWORD }}"
+    
 
       # Step 10: Push Docker image to JFrog Artifactory Docker registry
       #- name: Push Docker image to JFrog
