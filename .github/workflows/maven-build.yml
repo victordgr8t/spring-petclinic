@@ -70,7 +70,7 @@ jobs:
         
       # Step 9: Log in to Docker using JFrog credentials
       - name: Log in to Docker
-        run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+        run: docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_PASSWORD }}"
 
       # Step 10: Push Docker image to JFrog Artifactory Docker registry
       #- name: Push Docker image to JFrog
