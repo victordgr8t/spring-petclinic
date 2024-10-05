@@ -38,7 +38,7 @@ jobs:
       - name: Build with Maven and run SonarCloud scan
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn clean install org.sonarsource.scanner.maven:sonar \
+        run: mvn clean install org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.1.2184:sonar \
           -Dsonar.projectKey=victordgr8t \
           -Dsonar.organization=victormodebe \
           -Dsonar.host.url=https://sonarcloud.io \
