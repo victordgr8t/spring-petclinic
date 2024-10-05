@@ -81,7 +81,10 @@ jobs:
       # Step 11: Run SonarCloud scan
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@v1
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          projectKey: victordgr8t  # SonarCloud project key
-          organization: victormodebe  # Ensure this matches your SonarCloud organization key
-          token: ${{ secrets.SONAR_TOKEN }}  # SonarCloud authentication token stored in secrets
+          args: >
+            -Dsonar.projectKey=victordgr8t
+            -Dsonar.organization=victormodebe
+            -Dsonar.host.url=https://sonarcloud.io
