@@ -69,8 +69,8 @@ jobs:
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/spring-petclinic:${{ env.TAG }}
         
       # Step 9: Log in to Docker using JFrog credentials
-     # - name: Log in to Docker
-      #  run: echo "${{ secrets.JFROG_API_KEY }}" | docker login -u "${{ secrets.JFROG_USERNAME }}" --password-stdin http://44.201.244.220:8081
+      - name: Log in to Docker
+        run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
       # Step 10: Push Docker image to JFrog Artifactory Docker registry
       #- name: Push Docker image to JFrog
