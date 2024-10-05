@@ -1,6 +1,5 @@
-name: Build Java App with Maven, Push Docker Image to JFrog, and Scan Code with SonarCloud
+name: Build Java App with Maven, Push Docker Image to Docker Hub, and Scan Code with SonarCloud
 
-# Trigger workflow on push or pull request to the 'main' branch
 on:
   push:
     branches: [ main ]
@@ -35,9 +34,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      # Step 4: Build the project using Maven
-      - name: Build with Maven
-        run: mvn clean install
+      # Step 4: Build the project using Maven and run SonarCloud scan
+      - name: Build with Maven and run SonarCloud scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: mvn clean install org.sonarsource.scanner.maven:sonar \
+          -Dsonar.projectKey=victordgr8t \
+          -Dsonar.organization=victormodebe \
+          -Dsonar.host.url=https://sonarcloud.io \
+          -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
       # Step 5: Determine Docker tag
       - name: Determine Docker Tag
@@ -49,42 +54,18 @@ jobs:
             echo "TAG=${{ github.ref_name }}" >> $GITHUB_ENV
           fi
 
-      # Step 6: Configure Docker for insecure registry
-      #- name: Configure Docker for insecure registry
-        #run: |
-          #echo '{ "insecure-registries": ["44.201.244.220:8081"] }' | sudo tee /etc/docker/daemon.json
-          #sudo systemctl restart docker
-
-      # Step 7: Build Docker image for Spring PetClinic
+      # Step 6: Build Docker image for Spring PetClinic
       - name: Build Docker image
         run: docker build -t spring-petclinic:${{ env.TAG }} .
 
-      # Step 8: Tag the Docker image according to the official command
+      # Step 7: Log in to Docker Hub using credentials stored as GitHub Secrets
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      # Step 8: Tag the Docker image for Docker Hub
       - name: Tag Docker image
         run: docker tag spring-petclinic:${{ env.TAG }} ${{ secrets.DOCKERHUB_USERNAME }}/spring-petclinic:${{ env.TAG }}
-        #run: docker tag spring-petclinic:${{ env.TAG }} 44.201.244.220:8081/docker-local-1/spring-petclinic:${{ env.TAG }}
-
-          # Step 9: Log in to Docker using JFrog credentials
-      - name: Log in to Docker
-        run: docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_PASSWORD }}"
 
       # Step 9: Push Docker image to Docker Hub
       - name: Push Docker image to Docker Hub
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/spring-petclinic:${{ env.TAG }}
-        
-    
-
-      # Step 10: Push Docker image to JFrog Artifactory Docker registry
-      #- name: Push Docker image to JFrog
-     #   run: docker push 44.201.244.220:8081/docker-local-1/spring-petclinic:${{ env.TAG }}
-
-      # Step 11: Run SonarCloud scan
-      - name: SonarCloud Scan
-        uses: sonarsource/sonarcloud-github-action@v1
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=victordgr8t
-            -Dsonar.organization=victormodebe
-            -Dsonar.host.url=https://sonarcloud.io
